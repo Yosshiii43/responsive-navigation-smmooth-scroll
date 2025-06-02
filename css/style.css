@@ -1,0 +1,174 @@
+@charset "UTF-8";
+@import url("https://cdn.jsdelivr.net/npm/destyle.css@1.0.15/destyle.css"); /******************************
+バリアブル
+******************************/
+/******************************
+mxin
+******************************/
+/******************************
+ベース
+******************************/
+:root {
+  --header-h: 64px;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--header-h);
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  color: #333;
+  background: #fff;
+  font-family: system-ui, "Helvetica Neue", Arial, sans-serif;
+}
+body.is-scrollLock {
+  overflow: hidden;
+}
+
+/* テンプレ確認用 */
+.section {
+  height: 100vh;
+  padding: 2.5rem 1.25rem;
+}
+
+.section--alt {
+  background: #f5f7fa;
+}
+
+/******************************
+ヘッダー
+******************************/
+.l-header {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #fff;
+  border-bottom: 1px solid rgba(51, 51, 51, 0.1);
+}
+
+/******************************
+メイン
+******************************/
+/******************************
+インナー
+******************************/
+.l-inner {
+  max-width: 1000px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  display: flex;
+  align-items: center;
+  height: 4rem;
+  justify-content: space-between;
+}
+
+/******************************
+ハンバーガーメニュー
+******************************/
+.c-hamburger {
+  --bar-h: 2px;
+  --gap: 6px;
+  display: block;
+  width: 2rem;
+  height: 1.5rem;
+  position: relative;
+  z-index: 1000;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.c-hamburger span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--bar-h);
+  background: #333;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.c-hamburger span:nth-child(1) {
+  top: 0;
+}
+.c-hamburger span:nth-child(2) {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.c-hamburger span:nth-child(3) {
+  bottom: 0;
+}
+.c-hamburger[aria-expanded=true] span:nth-child(1) {
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+.c-hamburger[aria-expanded=true] span:nth-child(2) {
+  opacity: 0;
+}
+.c-hamburger[aria-expanded=true] span:nth-child(3) {
+  top: 50%;
+  transform: translateY(-50%) rotate(-45deg);
+}
+@media (min-width: 1024px) {
+  .c-hamburger {
+    display: none;
+  }
+}
+
+/******************************
+グローバルナビ
+******************************/
+.p-nav {
+  position: fixed;
+  z-index: 900;
+  inset: 0 0 0 auto;
+  width: min(80%, 17.5rem);
+  display: flex;
+  flex-direction: column;
+  padding: 5rem 1.5rem;
+  background: #fff;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+.p-nav.is-open {
+  transform: translateX(0);
+}
+.p-nav__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.p-nav__link {
+  display: block;
+  padding: 0.75rem 0;
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.p-nav__link:hover {
+  opacity: 0.7;
+}
+@media (min-width: 1024px) {
+  .p-nav {
+    position: static;
+    transform: none;
+    flex-direction: row;
+    width: auto;
+    padding: 0;
+    gap: 2rem;
+  }
+  .p-nav__list {
+    display: flex;
+    flex-direction: row;
+    gap: 3.125rem;
+  }
+}
+
+/******************************
+hidden
+******************************/
+.u-hidden {
+  display: none !important;
+}
+/*# sourceMappingURL=style.css.map */

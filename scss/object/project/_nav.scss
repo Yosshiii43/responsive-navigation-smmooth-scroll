@@ -1,0 +1,50 @@
+/******************************
+グローバルナビ
+******************************/
+@use "../../foundation/forwards" as *;
+
+// ─── Off‑canvas (モバイル既定) ─────────────────
+.p-nav {
+  position: fixed;
+  z-index: 900;
+  inset: 0 0 0 auto;  // 右サイドパネル
+  width: min(80%, rem(280));
+  display: flex;
+  flex-direction: column;
+  padding: rem(80) rem(24);
+  background: $color-bg;
+  transform: translateX(100%);
+  transition: transform .3s ease;
+
+  &.is-open { transform: translateX(0); }
+
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  &__link {
+    display: block;
+    padding: rem(12) 0;
+    color: inherit;
+    text-decoration: none;
+    transition: opacity .2s;
+    &:hover { opacity: .7; }
+  }
+
+  // ─── Desktop inline menu ─────────────────────
+  @include mq("pc") {
+    position: static;
+    transform: none;
+    flex-direction: row;
+    width: auto;
+    padding: 0;
+    gap: rem(32);
+
+    &__list{
+      display: flex;
+      flex-direction: row;
+      gap: rem(50);
+    }
+  }
+}
