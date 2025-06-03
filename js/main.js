@@ -1,75 +1,82 @@
 /*************************************************************************
  * Responsive navigation + smooth scroll
- * 2025.06  |  scroll-restoration fix added
- *************************************************************************/
-// ─── ① Stop browser’s automatic scroll restoration ───────────────
+ * 2025.06 最終版 | ページ内リンク後のTabスクロール戻り問題を修正
+ ************************************************************************/
+
+// ─── ① ブラウザの自動スクロール復元を無効に ────────────────
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
 
-// ─── ② Navigation & smooth-scroll handler ───────────────────────
+// ─── ② ナビゲーションメニューの開閉とスムーススクロール処理 ──────
 (() => {
   const hamburger = document.getElementById("js-hamburger");
-  const nav       = document.getElementById("global-nav");
-
+  const nav = document.getElementById("global-nav");
   if (!hamburger || !nav) return;
 
-  /* ハンバーガー開閉 */
+  // ▼ ハンバーガー開閉切り替え
   const toggleMenu = () => {
-    const isOpen = nav.classList.toggle("is-open"); //返り値が true = 付いた / false = 外した
+    const isOpen = nav.classList.toggle("is-open");
     hamburger.setAttribute("aria-expanded", isOpen);
     nav.setAttribute("aria-hidden", !isOpen);
-    document.body.classList.toggle("is-scrollLock", isOpen); //toggle() 2 つ目の引数は 付け外し条件。ここでは isOpen が true の時だけ付ける
+    document.body.classList.toggle("is-scrollLock", isOpen);
+    if (isOpen) {
+      nav.removeAttribute("inert");
+    } else {
+      nav.setAttribute("inert", "");
+    }
   };
 
   hamburger.addEventListener("click", toggleMenu);
 
-  /* in-page smooth scroll */
-  //ページ中のリンク先が # で始まる <a> 要素（ページ内リンク）を全部集めて1つずつ取り出して処理する
+  // ▼ ③ ページ内リンクのスムーススクロールとフォーカス処理
   document.querySelectorAll("a[href^='#']").forEach(link => {
-    //各リンクに「クリックされたとき」のイベントリスナーを登録。e はイベントオブジェクト。
     link.addEventListener("click", e => {
       const targetID = link.getAttribute("href");
-      //スクロール先の要素を決定。 - もし # だけなら ページ最上部 (document.documentElement)。 - それ以外なら querySelectorで該当要素を探す。
-      const target   = targetID === "#" ? document.documentElement
-                                        : document.querySelector(targetID);
-      //万一リンク先 ID が存在しなければ 何もしないで終了。
+      const target = targetID === "#" ? document.documentElement : document.querySelector(targetID);
       if (!target) return;
 
-      // <a> 本来の「即ジャンプする」動作を止める。
-      e.preventDefault();
+      e.preventDefault(); // 通常のジャンプをキャンセル
+      link.blur();        // Tabキー移動先を初期化
 
-      // ① URL のハッシュを先に置き換える
-      history.replaceState(null, '', targetID);
+      // URLのハッシュを更新
+      history.replaceState(null, "", targetID);
 
-      // ② メニューが開いていれば閉じる
+      // メニューが開いていれば閉じる
       if (nav.classList.contains("is-open")) toggleMenu();
 
-      // ③ スムーススクロール（scroll-padding-top が自動補正）
-      //ブラウザの組み込み API で アニメーション付きスクロール。
-      target.scrollIntoView({ // scroll-padding-top が効く
-        behavior: "smooth", // behavior: "smooth" で滑らかに移動。
-        block: "start"
-      });
+      // スクロール対象に一時的に tabindex="-1" を付与（フォーカス可能にする）
+      const hadTabindex = target.hasAttribute("tabindex");
+      if (!hadTabindex) {
+        target.setAttribute("tabindex", "-1");
+      }
+
+      // スムーススクロール開始
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      // スクロール完了後にフォーカス（preventScroll で戻りを抑制）
+      setTimeout(() => {
+        target.focus({ preventScroll: true });
+        // tabindexを元に戻す（あれば残す）
+        if (!hadTabindex) {
+          target.removeAttribute("tabindex");
+        }
+      }, 500); // 適度に余裕を持ってフォーカスを移す
     });
   });
 })();
 
-// ─── ③ Reload / back-forward 時に hash 位置を補正 ───────────────
-document.addEventListener('DOMContentLoaded', () => {
+// ─── ③ リロード・戻る進む時にハッシュ位置補正 ────────────────
+document.addEventListener("DOMContentLoaded", () => {
   const hash = location.hash;
   if (hash) {
     const target = document.querySelector(hash);
     if (target) {
-      // ❶ 一時的に scroll-behavior を auto に設定して瞬時移動
-      const htmlEl = document.documentElement;
-      const prevBehavior = htmlEl.style.scrollBehavior;
-      htmlEl.style.scrollBehavior = 'auto';
-
-      target.scrollIntoView({ block: 'start' }); // ← アニメなしで補正
-
-      // ❷ 元に戻して以降のクリックは smooth
-      htmlEl.style.scrollBehavior = prevBehavior;
+      const html = document.documentElement;
+      const prevScroll = html.style.scrollBehavior;
+      html.style.scrollBehavior = "auto"; // 一瞬で移動
+      target.scrollIntoView({ block: "start" });
+      html.style.scrollBehavior = prevScroll;
     }
   }
 });
