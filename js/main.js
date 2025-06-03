@@ -1,82 +1,141 @@
 /*************************************************************************
  * Responsive navigation + smooth scroll
- * 2025.06 最終版 | ページ内リンク後のTabスクロール戻り問題を修正
+ * 2025.06 修正版 | scroll-padding-top を JS で補正／逆スクロール回避
  ************************************************************************/
 
-// ─── ① ブラウザの自動スクロール復元を無効に ────────────────
+// ページ遷移時にブラウザが自動でスクロール位置を復元しないように設定
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
 
-// ─── ② ナビゲーションメニューの開閉とスムーススクロール処理 ──────
 (() => {
+  // ハンバーガーメニューとナビゲーションの要素を取得
   const hamburger = document.getElementById("js-hamburger");
   const nav = document.getElementById("global-nav");
   if (!hamburger || !nav) return;
 
-  // ▼ ハンバーガー開閉切り替え
+  // ハンバーガークリック時にメニューを開閉する関数
   const toggleMenu = () => {
     const isOpen = nav.classList.toggle("is-open");
     hamburger.setAttribute("aria-expanded", isOpen);
     nav.setAttribute("aria-hidden", !isOpen);
     document.body.classList.toggle("is-scrollLock", isOpen);
+
     if (isOpen) {
       nav.removeAttribute("inert");
     } else {
+      // nav 内にフォーカスがある場合は外す
+      const focused = document.activeElement;
+      if (nav.contains(focused)) focused.blur();
       nav.setAttribute("inert", "");
     }
   };
 
+  // ハンバーガークリックイベント
   hamburger.addEventListener("click", toggleMenu);
 
-  // ▼ ③ ページ内リンクのスムーススクロールとフォーカス処理
+  // すべてのページ内リンクに対して処理
   document.querySelectorAll("a[href^='#']").forEach(link => {
     link.addEventListener("click", e => {
-      const targetID = link.getAttribute("href");
-      const target = targetID === "#" ? document.documentElement : document.querySelector(targetID);
+      const href = link.getAttribute("href");
+      if (!href || href === "#") return;
+
+      const target = document.querySelector(href);
       if (!target) return;
 
-      e.preventDefault(); // 通常のジャンプをキャンセル
-      link.blur();        // Tabキー移動先を初期化
+      // 通常のジャンプ動作を止める
+      e.preventDefault();
 
-      // URLのハッシュを更新
-      history.replaceState(null, "", targetID);
-
-      // メニューが開いていれば閉じる
-      if (nav.classList.contains("is-open")) toggleMenu();
-
-      // スクロール対象に一時的に tabindex="-1" を付与（フォーカス可能にする）
-      const hadTabindex = target.hasAttribute("tabindex");
-      if (!hadTabindex) {
-        target.setAttribute("tabindex", "-1");
+      // スマホ時に nav が開いていたら閉じる
+      if (nav.classList.contains("is-open")) {
+        toggleMenu();
       }
 
-      // スムーススクロール開始
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      // URLにハッシュを付加（履歴にも残る）
+      history.pushState(null, '', href);
 
-      // スクロール完了後にフォーカス（preventScroll で戻りを抑制）
-      setTimeout(() => {
-        target.focus({ preventScroll: true });
-        // tabindexを元に戻す（あれば残す）
-        if (!hadTabindex) {
-          target.removeAttribute("tabindex");
-        }
-      }, 500); // 適度に余裕を持ってフォーカスを移す
+      // Tabキー操作によるスクロール戻りを防ぐため、全リンクを一時的に無効化
+      const allLinks = document.querySelectorAll('a');
+      allLinks.forEach(a => {
+        a.dataset.prevTabindex = a.getAttribute('tabindex') ?? '';
+        a.setAttribute('tabindex', '-1');
+      });
+
+      // 描画が終わってからスクロール処理を行う（位置ズレ防止）
+      requestAnimationFrame(() => {
+        const rect = target.getBoundingClientRect(); // ビューポートからの距離
+        const scrollY = window.pageYOffset; // 現在のスクロール位置
+        const scrollPadding = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--header-h')
+        ) || 0;
+        const offsetY = scrollY + rect.top - scrollPadding;
+
+        // スムーススクロールで目的の位置へ移動
+        window.scrollTo({ top: offsetY, behavior: 'smooth' });
+
+        // 少し待ってからフォーカスを当て直し
+        setTimeout(() => {
+          const hadTabindex = target.hasAttribute('tabindex');
+          if (!hadTabindex) target.setAttribute('tabindex', '-1');
+
+          // フォーカス時にスクロールさせないようにする
+          target.focus({ preventScroll: true });
+
+          // 一時的に付けた tabindex を削除
+          if (!hadTabindex) {
+            requestAnimationFrame(() => {
+              target.removeAttribute('tabindex');
+            });
+          }
+
+          // 全リンクの tabindex を元に戻す
+          allLinks.forEach(a => {
+            const prev = a.dataset.prevTabindex;
+            if (prev === '') {
+              a.removeAttribute('tabindex');
+            } else {
+              a.setAttribute('tabindex', prev);
+            }
+            delete a.dataset.prevTabindex;
+          });
+        }, 400); // スクロール終了のタイミングに合わせて調整
+      });
     });
   });
 })();
 
-// ─── ③ リロード・戻る進む時にハッシュ位置補正 ────────────────
-document.addEventListener("DOMContentLoaded", () => {
-  const hash = location.hash;
-  if (hash) {
-    const target = document.querySelector(hash);
-    if (target) {
-      const html = document.documentElement;
-      const prevScroll = html.style.scrollBehavior;
-      html.style.scrollBehavior = "auto"; // 一瞬で移動
-      target.scrollIntoView({ block: "start" });
-      html.style.scrollBehavior = prevScroll;
-    }
+// PC表示の場合はナビゲーションの aria-hidden を外す
+window.addEventListener("DOMContentLoaded", () => {
+  const nav = document.getElementById("global-nav");
+  if (!nav) return;
+
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    nav.removeAttribute('aria-hidden');
   }
+});
+
+// ページ読み込み時に #付きURLがある場合の処理
+window.addEventListener("DOMContentLoaded", () => {
+  const hash = location.hash;
+  if (!hash) return;
+
+  const target = document.querySelector(hash);
+  if (!target) return;
+
+  // 描画が安定してから補正スクロールを実行
+  requestAnimationFrame(() => {
+    const rect = target.getBoundingClientRect();
+    const scrollY = window.pageYOffset;
+    const scrollPadding = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--header-h')
+    ) || 0;
+    const offsetY = scrollY + rect.top - scrollPadding;
+
+    // 一瞬だけ scroll-behavior を無効にしてスクロール
+    const html = document.documentElement;
+    const prevScroll = html.style.scrollBehavior;
+    html.style.scrollBehavior = "auto";
+    window.scrollTo({ top: offsetY });
+    html.style.scrollBehavior = prevScroll;
+  });
 });

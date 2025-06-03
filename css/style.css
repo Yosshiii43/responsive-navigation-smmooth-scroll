@@ -12,9 +12,11 @@ mxin
   --header-h: 64px;
 }
 
+html, body {
+  overscroll-behavior: none;
+}
+
 html {
-  scroll-behavior: smooth;
-  scroll-padding-top: var(--header-h);
   font-size: 100%;
 }
 
@@ -26,6 +28,10 @@ body {
 }
 body.is-scrollLock {
   overflow: hidden;
+}
+
+*:focus {
+  scroll-margin-top: var(--header-h);
 }
 
 /* テンプレ確認用 */
