@@ -6,7 +6,7 @@
 // ─── Off‑canvas (モバイル既定) ─────────────────
 .p-nav {
   position: fixed;
-  z-index: 900;
+  z-index: $z-navPanel;
   inset: 0 0 0 auto;  // 右サイドパネル
   width: min(80%, rem(280));
   display: flex;

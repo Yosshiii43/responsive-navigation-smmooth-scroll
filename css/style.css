@@ -1,9 +1,9 @@
 @charset "UTF-8";
 @import url("https://cdn.jsdelivr.net/npm/destyle.css@1.0.15/destyle.css"); /******************************
-バリアブル
+mxin
 ******************************/
 /******************************
-mxin
+バリアブル
 ******************************/
 /******************************
 ベース
@@ -62,8 +62,8 @@ body.is-scrollLock {
   padding-inline: 1.25rem;
   display: flex;
   align-items: center;
-  height: 4rem;
   justify-content: space-between;
+  height: 4rem;
 }
 
 /******************************
@@ -76,10 +76,42 @@ body.is-scrollLock {
   width: 2rem;
   height: 1.5rem;
   position: relative;
-  z-index: 1000;
+  z-index: 1200;
+  /* ─ 基本リセット ─ */
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
+  line-height: 0;
+  /* フォーカスリングをつける */
+  /* 展開アニメーション*/
+}
+.c-hamburger:focus-visible {
+  outline: 2px solid #2684ff;
+  outline-offset: 2px;
+}
+.c-hamburger:focus {
+  outline: 2px solid #2684ff;
+  outline-offset: 2px;
+}
+@supports selector(:focus-visible) {
+  .c-hamburger:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+.c-hamburger[aria-expanded=true] span:nth-child(1) {
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+.c-hamburger[aria-expanded=true] span:nth-child(2) {
+  opacity: 0;
+}
+.c-hamburger[aria-expanded=true] span:nth-child(3) {
+  top: 50%;
+  transform: translateY(-50%) rotate(-45deg);
 }
 .c-hamburger span {
   position: absolute;
@@ -99,17 +131,6 @@ body.is-scrollLock {
 .c-hamburger span:nth-child(3) {
   bottom: 0;
 }
-.c-hamburger[aria-expanded=true] span:nth-child(1) {
-  top: 50%;
-  transform: translateY(-50%) rotate(45deg);
-}
-.c-hamburger[aria-expanded=true] span:nth-child(2) {
-  opacity: 0;
-}
-.c-hamburger[aria-expanded=true] span:nth-child(3) {
-  top: 50%;
-  transform: translateY(-50%) rotate(-45deg);
-}
 @media (min-width: 1024px) {
   .c-hamburger {
     display: none;
@@ -121,7 +142,7 @@ body.is-scrollLock {
 ******************************/
 .p-nav {
   position: fixed;
-  z-index: 900;
+  z-index: 1100;
   inset: 0 0 0 auto;
   width: min(80%, 17.5rem);
   display: flex;
