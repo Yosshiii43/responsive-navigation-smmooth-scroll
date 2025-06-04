@@ -9,32 +9,31 @@ if ('scrollRestoration' in history) {
 }
 
 (() => {
-  // ハンバーガーメニューとナビゲーションの要素を取得
+  // ハンバーガーボタンとナビゲーションエリアを取得
   const hamburger = document.getElementById("js-hamburger");
   const nav = document.getElementById("global-nav");
   if (!hamburger || !nav) return;
 
-  // ハンバーガークリック時にメニューを開閉する関数
+  // ハンバーガーメニュー開閉処理
   const toggleMenu = () => {
     const isOpen = nav.classList.toggle("is-open");
-    hamburger.setAttribute("aria-expanded", isOpen);
+    hamburger.setAttribute("aria-expanded", isOpen); // アクセシビリティ対応
     nav.setAttribute("aria-hidden", !isOpen);
-    document.body.classList.toggle("is-scrollLock", isOpen);
+    document.body.classList.toggle("is-scrollLock", isOpen); // 背景スクロール防止
 
     if (isOpen) {
-      nav.removeAttribute("inert");
+      nav.removeAttribute("inert"); // フォーカス可能にする
     } else {
-      // nav 内にフォーカスがある場合は外す
       const focused = document.activeElement;
-      if (nav.contains(focused)) focused.blur();
-      nav.setAttribute("inert", "");
+      if (nav.contains(focused)) focused.blur(); // nav内の要素がフォーカスされていれば解除
+      nav.setAttribute("inert", ""); // nav内の要素を一時的にフォーカス不可に
     }
   };
 
-  // ハンバーガークリックイベント
+  // ハンバーガークリックイベント登録
   hamburger.addEventListener("click", toggleMenu);
 
-  // すべてのページ内リンクに対して処理
+  // ページ内リンクを取得（#で始まるリンク）
   document.querySelectorAll("a[href^='#']").forEach(link => {
     link.addEventListener("click", e => {
       const href = link.getAttribute("href");
@@ -43,45 +42,37 @@ if ('scrollRestoration' in history) {
       const target = document.querySelector(href);
       if (!target) return;
 
-      // 通常のジャンプ動作を止める
-      e.preventDefault();
+      e.preventDefault(); // デフォルトのジャンプ動作を無効化
 
-      // スマホ時に nav が開いていたら閉じる
+      // SP時にメニューが開いていれば閉じる
       if (nav.classList.contains("is-open")) {
         toggleMenu();
       }
 
-      // URLにハッシュを付加（履歴にも残る）
-      history.pushState(null, '', href);
+      history.pushState(null, '', href); // URLにハッシュを付与（履歴にも残る）
 
-      // Tabキー操作によるスクロール戻りを防ぐため、全リンクを一時的に無効化
+      // Tabキーによる逆スクロール回避：リンクを一時的に非フォーカスに
       const allLinks = document.querySelectorAll('a');
       allLinks.forEach(a => {
-        a.dataset.prevTabindex = a.getAttribute('tabindex') ?? '';
-        a.setAttribute('tabindex', '-1');
+        a.dataset.prevTabindex = a.getAttribute('tabindex') ?? ''; // 元のtabindexを保存
+        a.setAttribute('tabindex', '-1'); // 一時的に無効化
       });
 
-      // 描画が終わってからスクロール処理を行う（位置ズレ防止）
+      // 描画後に位置を正確に補正してスクロール
       requestAnimationFrame(() => {
-        const rect = target.getBoundingClientRect(); // ビューポートからの距離
-        const scrollY = window.pageYOffset; // 現在のスクロール位置
+        const rect = target.getBoundingClientRect();
+        const scrollY = window.pageYOffset;
         const scrollPadding = parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue('--header-h')
         ) || 0;
         const offsetY = scrollY + rect.top - scrollPadding;
 
-        // スムーススクロールで目的の位置へ移動
-        window.scrollTo({ top: offsetY, behavior: 'smooth' });
+        window.scrollTo({ top: offsetY, behavior: 'smooth' }); // スムーススクロール
 
-        // 少し待ってからフォーカスを当て直し
         setTimeout(() => {
           const hadTabindex = target.hasAttribute('tabindex');
           if (!hadTabindex) target.setAttribute('tabindex', '-1');
-
-          // フォーカス時にスクロールさせないようにする
-          target.focus({ preventScroll: true });
-
-          // 一時的に付けた tabindex を削除
+          target.focus({ preventScroll: true }); // スクロールせずにフォーカス
           if (!hadTabindex) {
             requestAnimationFrame(() => {
               target.removeAttribute('tabindex');
@@ -98,13 +89,13 @@ if ('scrollRestoration' in history) {
             }
             delete a.dataset.prevTabindex;
           });
-        }, 400); // スクロール終了のタイミングに合わせて調整
+        }, 400); // スクロール完了を待つために遅延
       });
     });
   });
 })();
 
-// PC表示の場合はナビゲーションの aria-hidden を外す
+// PC表示時は nav の aria-hidden を解除（常に表示されているため）
 window.addEventListener("DOMContentLoaded", () => {
   const nav = document.getElementById("global-nav");
   if (!nav) return;
@@ -114,7 +105,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// ページ読み込み時に #付きURLがある場合の処理
+// ハッシュ付きURLでページを開いた時に補正スクロールを実行
 window.addEventListener("DOMContentLoaded", () => {
   const hash = location.hash;
   if (!hash) return;
@@ -122,7 +113,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const target = document.querySelector(hash);
   if (!target) return;
 
-  // 描画が安定してから補正スクロールを実行
   requestAnimationFrame(() => {
     const rect = target.getBoundingClientRect();
     const scrollY = window.pageYOffset;
@@ -131,11 +121,10 @@ window.addEventListener("DOMContentLoaded", () => {
     ) || 0;
     const offsetY = scrollY + rect.top - scrollPadding;
 
-    // 一瞬だけ scroll-behavior を無効にしてスクロール
     const html = document.documentElement;
     const prevScroll = html.style.scrollBehavior;
-    html.style.scrollBehavior = "auto";
+    html.style.scrollBehavior = "auto"; // 一瞬だけ自動スクロールにして補正
     window.scrollTo({ top: offsetY });
-    html.style.scrollBehavior = prevScroll;
+    html.style.scrollBehavior = prevScroll; // 元に戻す
   });
 });
