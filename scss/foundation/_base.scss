@@ -28,6 +28,10 @@ body  {
   scroll-margin-top: var(--header-h);
 }
 
+[id] {
+  scroll-margin-top: var(--header-h);
+}
+
 /* テンプレ確認用 */
 .section      { 
   height: 100vh; 

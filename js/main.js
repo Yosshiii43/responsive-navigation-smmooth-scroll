@@ -1,119 +1,59 @@
 /*************************************************************************
- * Responsive navigation + smooth scroll
- * 2025.06 修正版 | scroll-padding-top を JS で補正／逆スクロール回避
+ * スムーススクロール + 逆スクロール対策・Safariスムーススクロールスピード対策版
  ************************************************************************/
 
-// ページ遷移時にブラウザが自動でスクロール位置を復元しないように設定
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+// スクロール復元を無効化
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
 
-(() => {
-  // ハンバーガーボタンとナビゲーションエリアを取得
-  const hamburger = document.getElementById("js-hamburger");
-  const nav = document.getElementById("global-nav");
-  if (!hamburger || !nav) return;
+document.addEventListener('DOMContentLoaded', () => {
+  const hamburger = document.getElementById('js-hamburger');
+  const nav = document.getElementById('global-nav');
+  const body = document.body;
 
-  // ハンバーガーメニュー開閉処理
+  if (!nav) return;
+
   const toggleMenu = () => {
-    const isOpen = nav.classList.toggle("is-open");
-    hamburger.setAttribute("aria-expanded", isOpen); // アクセシビリティ対応
-    nav.setAttribute("aria-hidden", !isOpen);
-    document.body.classList.toggle("is-scrollLock", isOpen); // 背景スクロール防止
+    const isOpen = nav.classList.toggle('is-open');
+    hamburger?.setAttribute('aria-expanded', isOpen);
+    nav.setAttribute('aria-hidden', !isOpen);
+    body.classList.toggle('is-scrollLock', isOpen);
 
     if (isOpen) {
-      nav.removeAttribute("inert"); // フォーカス可能にする
+      nav.removeAttribute('inert');
     } else {
       const focused = document.activeElement;
-      if (nav.contains(focused)) focused.blur(); // nav内の要素がフォーカスされていれば解除
-      nav.setAttribute("inert", ""); // nav内の要素を一時的にフォーカス不可に
+      if (nav.contains(focused)) focused.blur();
+      nav.setAttribute('inert', '');
     }
   };
 
-  // ハンバーガークリックイベント登録
-  hamburger.addEventListener("click", toggleMenu);
+  hamburger?.addEventListener('click', toggleMenu);
 
-  // ページ内リンクを取得（#で始まるリンク）
-  document.querySelectorAll("a[href^='#']").forEach(link => {
-    link.addEventListener("click", e => {
-      const href = link.getAttribute("href");
-      if (!href || href === "#") return;
+  // Safari専用スムーススクロール関数
+  const smoothScrollTo = (targetY, duration = 600) => {
+    const startY = window.pageYOffset;
+    const distance = targetY - startY;
+    const startTime = performance.now();
 
-      const target = document.querySelector(href);
-      if (!target) return;
+    const easeOutQuad = t => t * (2 - t);
 
-      e.preventDefault(); // デフォルトのジャンプ動作を無効化
-
-      // SP時にメニューが開いていれば閉じる
-      if (nav.classList.contains("is-open")) {
-        toggleMenu();
+    const step = currentTime => {
+      const time = Math.min(1, (currentTime - startTime) / duration);
+      const eased = easeOutQuad(time);
+      window.scrollTo(0, startY + distance * eased);
+      if (time < 1) {
+        requestAnimationFrame(step);
       }
+    };
 
-      history.pushState(null, '', href); // URLにハッシュを付与（履歴にも残る）
+    requestAnimationFrame(step);
+  };
 
-      // Tabキーによる逆スクロール回避：リンクを一時的に非フォーカスに
-      const allLinks = document.querySelectorAll('a');
-      allLinks.forEach(a => {
-        a.dataset.prevTabindex = a.getAttribute('tabindex') ?? ''; // 元のtabindexを保存
-        a.setAttribute('tabindex', '-1'); // 一時的に無効化
-      });
-
-      // 描画後に位置を正確に補正してスクロール
-      requestAnimationFrame(() => {
-        const rect = target.getBoundingClientRect();
-        const scrollY = window.pageYOffset;
-        const scrollPadding = parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--header-h')
-        ) || 0;
-        const offsetY = scrollY + rect.top - scrollPadding;
-
-        window.scrollTo({ top: offsetY, behavior: 'smooth' }); // スムーススクロール
-
-        setTimeout(() => {
-          const hadTabindex = target.hasAttribute('tabindex');
-          if (!hadTabindex) target.setAttribute('tabindex', '-1');
-          target.focus({ preventScroll: true }); // スクロールせずにフォーカス
-          if (!hadTabindex) {
-            requestAnimationFrame(() => {
-              target.removeAttribute('tabindex');
-            });
-          }
-
-          // 全リンクの tabindex を元に戻す
-          allLinks.forEach(a => {
-            const prev = a.dataset.prevTabindex;
-            if (prev === '') {
-              a.removeAttribute('tabindex');
-            } else {
-              a.setAttribute('tabindex', prev);
-            }
-            delete a.dataset.prevTabindex;
-          });
-        }, 400); // スクロール完了を待つために遅延
-      });
-    });
-  });
-})();
-
-// PC表示時は nav の aria-hidden を解除（常に表示されているため）
-window.addEventListener("DOMContentLoaded", () => {
-  const nav = document.getElementById("global-nav");
-  if (!nav) return;
-
-  if (window.matchMedia('(min-width: 768px)').matches) {
-    nav.removeAttribute('aria-hidden');
-  }
-});
-
-// ハッシュ付きURLでページを開いた時に補正スクロールを実行
-window.addEventListener("DOMContentLoaded", () => {
-  const hash = location.hash;
-  if (!hash) return;
-
-  const target = document.querySelector(hash);
-  if (!target) return;
-
-  requestAnimationFrame(() => {
+  const scrollToTarget = target => {
     const rect = target.getBoundingClientRect();
     const scrollY = window.pageYOffset;
     const scrollPadding = parseFloat(
@@ -121,10 +61,72 @@ window.addEventListener("DOMContentLoaded", () => {
     ) || 0;
     const offsetY = scrollY + rect.top - scrollPadding;
 
-    const html = document.documentElement;
-    const prevScroll = html.style.scrollBehavior;
-    html.style.scrollBehavior = "auto"; // 一瞬だけ自動スクロールにして補正
-    window.scrollTo({ top: offsetY });
-    html.style.scrollBehavior = prevScroll; // 元に戻す
+    if (isSafari) {
+      smoothScrollTo(offsetY, 600);
+    } else {
+      window.scrollTo({
+        top: offsetY,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    const handleAnchor = e => {
+      const href = link.getAttribute('href');
+      if (!href || href === '#') return;
+
+      const target = document.querySelector(href);
+      if (!target) return;
+
+      e.preventDefault();
+      history.pushState(null, '', href);
+
+      if (nav.classList.contains('is-open')) {
+        toggleMenu();
+      }
+
+      requestAnimationFrame(() => {
+        scrollToTarget(target);
+      });
+    };
+
+    link.addEventListener('mousedown', e => {
+      if (e.button === 0) handleAnchor(e);
+    });
+
+    link.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAnchor(e);
+    });
   });
+
+  // 読み込み時のハッシュ補正
+  const hash = location.hash;
+  if (hash) {
+    const target = document.querySelector(hash);
+    if (target) {
+      requestAnimationFrame(() => {
+        scrollToTarget(target);
+      });
+    }
+  }
+
+  // PC幅に切り替えたときに nav を有効化
+  window.matchMedia('(min-width: 768px)').addEventListener('change', e => {
+    if (e.matches) {
+      nav.removeAttribute('aria-hidden');
+      nav.removeAttribute('inert');
+    } else {
+      if (!nav.classList.contains('is-open')) {
+        nav.setAttribute('aria-hidden', 'true');
+        nav.setAttribute('inert', '');
+      }
+    }
+  });
+
+  // 初期読み込み時にもPC幅なら解除
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    nav.removeAttribute('aria-hidden');
+    nav.removeAttribute('inert');
+  }
 });
