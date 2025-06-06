@@ -9,7 +9,7 @@
 | `$header-h`    | ヘッダーの高さ              | `64px`    |
 | `$header-mode` | `fixed` か `sticky` を指定 | `fixed`   |
 
-＊$header-mode: fixed; // ← Safariでtabキーを使用したときにスクロール戻りが発生するためstickyは使用しません。
+＊$header-mode: fixed; // ← Safariでtabキーを使用したときにスクロール戻りが発生するためstickyは今のところ使用しません。
 
 // 例: 高さ 72px のstickyヘッダーに切り替えたい場合
 $header-h   : 72px;
