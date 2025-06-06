@@ -1,10 +1,10 @@
 /*************************************************************************
- * スムーススクロール + 逆スクロール対策・Safariスムーススクロールスピード対策版
- ************************************************************************/
+ * main.js - * var.1.0
+ * ハンバーガーメニュー制御 + スムーススクロール処理
+ *************************************************************************/
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-// スクロール復元を無効化
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!nav) return;
 
+  // ハンバーガーメニュー開閉処理
   const toggleMenu = () => {
     const isOpen = nav.classList.toggle('is-open');
     hamburger?.setAttribute('aria-expanded', isOpen);
@@ -33,21 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   hamburger?.addEventListener('click', toggleMenu);
 
-  // Safari専用スムーススクロール関数
+  // Safari対策付きスムーススクロール
   const smoothScrollTo = (targetY, duration = 600) => {
     const startY = window.pageYOffset;
     const distance = targetY - startY;
     const startTime = performance.now();
-
     const easeOutQuad = t => t * (2 - t);
 
     const step = currentTime => {
       const time = Math.min(1, (currentTime - startTime) / duration);
       const eased = easeOutQuad(time);
       window.scrollTo(0, startY + distance * eased);
-      if (time < 1) {
-        requestAnimationFrame(step);
-      }
+      if (time < 1) requestAnimationFrame(step);
     };
 
     requestAnimationFrame(step);
@@ -64,31 +62,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isSafari) {
       smoothScrollTo(offsetY, 600);
     } else {
-      window.scrollTo({
-        top: offsetY,
-        behavior: 'smooth'
-      });
+      window.scrollTo({ top: offsetY, behavior: 'smooth' });
     }
   };
 
+  // アンカーリンククリック処理
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     const handleAnchor = e => {
       const href = link.getAttribute('href');
       if (!href || href === '#') return;
-
       const target = document.querySelector(href);
       if (!target) return;
 
       e.preventDefault();
       history.pushState(null, '', href);
 
-      if (nav.classList.contains('is-open')) {
-        toggleMenu();
-      }
+      if (nav.classList.contains('is-open')) toggleMenu();
 
-      requestAnimationFrame(() => {
-        scrollToTarget(target);
-      });
+      requestAnimationFrame(() => scrollToTarget(target));
     };
 
     link.addEventListener('mousedown', e => {
@@ -100,18 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 読み込み時のハッシュ補正
+  // 初期読み込み時のハッシュ対応
   const hash = location.hash;
   if (hash) {
     const target = document.querySelector(hash);
     if (target) {
-      requestAnimationFrame(() => {
-        scrollToTarget(target);
-      });
+      requestAnimationFrame(() => scrollToTarget(target));
     }
   }
 
-  // PC幅に切り替えたときに nav を有効化
+  // PC/SP幅の切り替えに応じてナビ状態調整
   window.matchMedia('(min-width: 768px)').addEventListener('change', e => {
     if (e.matches) {
       nav.removeAttribute('aria-hidden');
@@ -124,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 初期読み込み時にもPC幅なら解除
   if (window.matchMedia('(min-width: 768px)').matches) {
     nav.removeAttribute('aria-hidden');
     nav.removeAttribute('inert');
