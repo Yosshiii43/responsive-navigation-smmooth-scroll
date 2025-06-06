@@ -52,12 +52,17 @@ body.is-scrollLock {
 ヘッダー
 ******************************/
 .l-header {
-  position: -webkit-sticky;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   background: #fff;
   border-bottom: 1px solid rgba(51, 51, 51, 0.1);
+}
+
+body {
+  padding-top: var(--header-h);
 }
 
 /******************************
