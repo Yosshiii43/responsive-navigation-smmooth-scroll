@@ -1,170 +1,190 @@
 /*************************************************************************
- * main-for-study.js * var.1.0
- * スムーススクロール + Safari対策 + ハンバーガーメニュー制御
- * 初学者向け詳細コメント付き：Yoshino 2025
+ * main.js  –  var.1.2 〈初心者向けコメント付き〉
+ *
+ * 目的
+ * -------------------------------------------------------------
+ *   1. 画面幅が 1024px 以上（PC）では横並びナビを常時表示。
+ *   2. 1023px 以下（SP/タブレット）ではハンバーガーで開閉。
+ *   3. SP 幅で開いた状態のまま PC 幅にすると自動でリセット。
+ *   4. ハンバーガーを開いたまま PC → SP 幅に戻ったら
+ *      もう一度ハンバーガーを「閉じた状態」に戻す。
+ *   5. 固定ヘッダーでもズレのないアンカー（#リンク）スクロール。
+ *   6. Safari の “逆スクロール” 問題を回避。
  *************************************************************************/
 
-// Safariかどうかを判定するための正規表現（ChromeやAndroidではないSafariのみ）
+/* ============================
+   0. ブラウザ判定 & スクロール復元無効化
+   ============================ */
+
+// 「ユーザーエージェント」に 'Safari' だけが含まれるかチェック。
+// Chrome for iOS などは `chrome` が入るので除外できる。
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-// ページを戻ったときに自動的に前のスクロール位置に戻らないように設定（Safariで不具合が出やすいため）
+// ページ再読み込み時に、ブラウザが「前のスクロール位置」を
+// 勝手に再現しないようにする（リロード時のガタつき防止）。
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
 
-// HTML全体のDOMが読み込まれたら実行
-// → 画像などの読み込みは待たずにスクリプトを開始できる
-
-
-
+/* ============================
+   1. DOM が読み込まれてから実行
+   ============================ */
 document.addEventListener('DOMContentLoaded', () => {
-  const hamburger = document.getElementById('js-hamburger'); // ハンバーガーメニューボタン（開閉トグル）
-  const nav = document.getElementById('global-nav'); // ナビゲーションメニュー本体
-  const body = document.body; // スクロールロック用に使うbody
+  /* ------------------------------------------
+     1-A. 要素とメディアクエリの取得
+  ------------------------------------------ */
+  const mqPC      = window.matchMedia('(min-width: 1024px)'); // 1024px 以上を「PC」幅と定義
+  const hamburger = document.getElementById('js-hamburger');  // 3 本線（≒ボタン）
+  const nav       = document.getElementById('global-nav');    // 対象ナビゲーション
+  const body      = document.body;                            // 背景スクロールを止める用
+  if (!nav) return;   // nav 要素が存在しないなら以降の処理は不要
 
-  if (!nav) return; // navが存在しない（取得できなかった）場合は以降の処理を中止
+  /* ------------------------------------------
+     1-B. ナビ表示を「完全に閉じる」関数
+           （SP 幅のデフォルト状態に戻す）
+  ------------------------------------------ */
+  const closeMobileMenu = () => {
+    hamburger?.classList.remove('is-open');        // アイコンの線を元に戻す
+    hamburger?.setAttribute('aria-expanded', 'false');
+    nav.classList.remove('is-open');               // ナビ本体を隠す
+    body.classList.remove('is-scrollLock');        // 背景スクロール解放
+    nav.setAttribute('aria-hidden', 'true');       // スクリーンリーダーから隠す
+    nav.setAttribute('inert', '');                 // フォーカスを当てられないように
+  };
 
-  /**
-   * ハンバーガーメニューの開閉を切り替える関数
-   * - navに"is-open"クラスを付けて表示／非表示を切り替える
-   * - aria属性を更新（アクセシビリティ対応）
-   * - inert属性でフォーカスを制御（SP時にメニュー外にフォーカスが行かないように）
-   */
+  /* ------------------------------------------
+     1-C. ナビを「PC 用デフォルト表示」にする関数
+  ------------------------------------------ */
+  const openDesktopNav = () => {
+    // ハンバーガーは閉じたまま（PC では単なる飾りボタン）
+    hamburger?.classList.remove('is-open');
+    hamburger?.setAttribute('aria-expanded', 'false');
+    body.classList.remove('is-scrollLock');        // 念のため解除
+    nav.classList.remove('is-open');               // .is-open を外すだけで表示
+    nav.removeAttribute('aria-hidden');            // スクリーンリーダー OK
+    nav.removeAttribute('inert');                  // キーボード操作 OK
+  };
+
+  /* ------------------------------------------
+     2. ハンバーガーボタンで開閉する関数
+  ------------------------------------------ */
   const toggleMenu = () => {
+    // classList.toggle() は追加/削除を 1 行で
     const isOpen = nav.classList.toggle('is-open');
 
-    hamburger?.setAttribute('aria-expanded', isOpen); // スクリーンリーダー向け：開いているかどうか
-    nav.setAttribute('aria-hidden', !isOpen); // メニューが非表示かどうか
-    body.classList.toggle('is-scrollLock', isOpen); // 開いている間はbodyスクロールを止める
+    // WAI-ARIA：開閉状態を読み上げソフトに伝える
+    hamburger?.setAttribute('aria-expanded', isOpen);
+    nav.setAttribute('aria-hidden', !isOpen);
 
+    // 背景スクロールを止める（iOS などで body が背面スクロールすると UX が悪い）
+    body.classList.toggle('is-scrollLock', isOpen);
+
+    // inert 属性でフォーカス制御（ポータル / ダイアログの考え方と同じ）
     if (isOpen) {
-      nav.removeAttribute('inert'); // メニューにフォーカス可能にする
+      nav.removeAttribute('inert');
     } else {
-      const focused = document.activeElement; // 今フォーカスされている要素
-      if (nav.contains(focused)) focused.blur(); // メニュー内にあればフォーカスを外す
-      nav.setAttribute('inert', ''); // フォーカス対象外に（タブキーなどでも入れない）
+      const focused = document.activeElement;
+      if (nav.contains(focused)) focused.blur();   // ナビ内にフォーカスが残る場合は外す
+      nav.setAttribute('inert', '');
     }
   };
 
-  // ハンバーガーボタンがクリックされたらメニュー開閉
+  // クリックで開閉
   hamburger?.addEventListener('click', toggleMenu);
 
-  /**
-   * Safari用：ネイティブのscrollTo({behavior:'smooth'})が速すぎるので
-   * カスタムイージング関数を使ったスムーススクロール処理
-   *
-   * @param {number} targetY - スクロールしたい最終Y座標
-   * @param {number} duration - アニメーションの時間（ms）
-   */
+  /* ============================
+     3. スムーススクロール（Safari 対応）
+     ============================ */
+
+  // Safari は scroll-behavior: smooth がギクシャクするので
+  // requestAnimationFrame を使った手動アニメを用意
   const smoothScrollTo = (targetY, duration = 600) => {
-    const startY = window.pageYOffset; // 現在のスクロールY位置
-    const distance = targetY - startY; // 移動距離
-    const startTime = performance.now(); // アニメーション開始時刻
+    const startY   = window.pageYOffset;           // 今のスクロール量
+    const distance = targetY - startY;             // 目的地までの距離
+    const startT   = performance.now();            // アニメ開始時刻
+    const easeOutQuad = t => t * (2 - t);          // イージング関数
 
-    // easing関数：最後にゆっくり止まる（イージングの一種）
-    const easeOutQuad = t => t * (2 - t);
-
-    const step = currentTime => {
-      const time = Math.min(1, (currentTime - startTime) / duration); // 0〜1に正規化
-      const eased = easeOutQuad(time); // easingでなめらかに
-      window.scrollTo(0, startY + distance * eased); // スクロール実行
-      if (time < 1) requestAnimationFrame(step); // 最後まで終わってなければ継続
+    const step = now => {
+      const time  = Math.min(1, (now - startT) / duration);
+      const eased = easeOutQuad(time);
+      window.scrollTo(0, startY + distance * eased);
+      if (time < 1) requestAnimationFrame(step);   // 終点に着くまで再帰
     };
-
     requestAnimationFrame(step);
   };
 
-  /**
-   * 要素の位置を取得してスクロールする関数
-   * @param {HTMLElement} target - スクロール先の要素
-   */
+  // 「#target 要素」へスクロールする共通処理
   const scrollToTarget = target => {
-    const rect = target.getBoundingClientRect(); // ビューポートからの相対位置
-    const scrollY = window.pageYOffset; // 現在のスクロール量
+    const rect   = target.getBoundingClientRect(); // ビューポート基準の位置
+    const scrollY = window.pageYOffset;
+    // CSS 変数 --header-h に固定ヘッダーの高さを入れておく
     const scrollPadding = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue('--header-h')
-    ) || 0; // ヘッダー高さ（--header-h）を取得
+    ) || 0;
+    const offsetY = scrollY + rect.top - scrollPadding;
 
-    const offsetY = scrollY + rect.top - scrollPadding; // スクロール先のY座標（ヘッダー分調整）
-
-    // Safariかそれ以外かで処理分岐
+    // Safari だけ手動アニメ、ほかはネイティブ smooth
     if (isSafari) {
-      smoothScrollTo(offsetY, 600); // カスタムスクロール
+      smoothScrollTo(offsetY);
     } else {
-      window.scrollTo({ top: offsetY, behavior: 'smooth' }); // 標準スムーススクロール
+      window.scrollTo({ top: offsetY, behavior: 'smooth' });
     }
   };
 
-  /**
-   * a[href^="#"] のリンクをすべて対象にする
-   * - SPナビのリンクを押したときにもスクロールが発生
-   */
+  /* ============================
+     4. アンカーリンク（#xxx）クリック
+     ============================ */
   document.querySelectorAll('a[href^="#"]').forEach(link => {
+    // 共通で呼ぶ関数を定義
     const handleAnchor = e => {
-      const href = link.getAttribute('href');
-      if (!href || href === '#') return; // hrefが空や"#"だけなら無視
+      const href = link.getAttribute('href');      // 例: "#section2"
+      if (!href || href === '#') return;           // 「#」のみはトップに飛ばす場合
+      const target = document.querySelector(href); // 対象要素取得
+      if (!target) return;                         // 存在しなければ何もしない
 
-      const target = document.querySelector(href);
-      if (!target) return;
+      e.preventDefault();                          // 本来のジャンプを止める
+      history.pushState(null, '', href);           // URL のハッシュだけ書き換え
 
-      e.preventDefault(); // 通常のリンク動作を止める
-      history.pushState(null, '', href); // URLのハッシュだけ変更（ページ遷移なし）
+      // SP でナビが開いていたら閉じてからスクロール
+      if (nav.classList.contains('is-open')) toggleMenu();
 
-      if (nav.classList.contains('is-open')) {
-        toggleMenu(); // メニューが開いていれば閉じる
-      }
-
-      // レイアウトが安定してからスクロールを実行
-      requestAnimationFrame(() => {
-        scrollToTarget(target);
-      });
+      // レイアウト確定後にスクロール（requestAnimationFrame で 1 フレーム先へ）
+      requestAnimationFrame(() => scrollToTarget(target));
     };
 
-    // 左クリックでスクロール処理を行う
-    link.addEventListener('mousedown', e => {
+    /* ----------- イベント登録（初心者向けに展開） ----------- */
+    link.addEventListener('mousedown', e => {      // マウス左クリック
       if (e.button === 0) handleAnchor(e);
     });
 
-    // Enterキーでのフォーカス移動時にも対応
-    link.addEventListener('keydown', e => {
+    link.addEventListener('keydown', e => {        // キーボード Enter
       if (e.key === 'Enter') handleAnchor(e);
     });
   });
 
-  /**
-   * 読み込み時にURLにハッシュがついていたら、その位置にスクロール
-   */
-  const hash = location.hash;
-  if (hash) {
-    const target = document.querySelector(hash);
-    if (target) {
-      requestAnimationFrame(() => {
-        scrollToTarget(target);
-      });
-    }
+  /* ============================
+     5. ページ読込直後、URL に # があればスクロール
+     ============================ */
+  if (location.hash) {
+    const target = document.querySelector(location.hash);
+    if (target) requestAnimationFrame(() => scrollToTarget(target));
   }
 
-  /**
-   * ウィンドウ幅が768px以上になったとき、メニューを常時表示状態に切り替え
-   * - SPで閉じたままになっていたメニューを有効化
-   */
-  window.matchMedia('(min-width: 768px)').addEventListener('change', e => {
-    if (e.matches) {
-      nav.removeAttribute('aria-hidden'); // 表示扱いにする
-      nav.removeAttribute('inert'); // フォーカス対象にする
-    } else {
-      if (!nav.classList.contains('is-open')) {
-        nav.setAttribute('aria-hidden', 'true'); // 非表示扱い
-        nav.setAttribute('inert', ''); // フォーカス対象外
-      }
+  /* ============================
+     6. 画面幅が変わったときのリセット
+     ============================ */
+  mqPC.addEventListener('change', e => {
+    if (e.matches) {            // 例:  900px → 1100px（SP → PC）
+      openDesktopNav();
+    } else {                    // 例: 1100px → 900px（PC → SP）
+      closeMobileMenu();
     }
   });
 
-  /**
-   * 読み込み時にも、ウィンドウ幅が768px以上ならPC用メニューとして扱う
-   */
-  if (window.matchMedia('(min-width: 768px)').matches) {
-    nav.removeAttribute('aria-hidden');
-    nav.removeAttribute('inert');
+  // ページ初期表示時の状態を決定
+  if (mqPC.matches) {           // 読み込んだ瞬間 PC 幅だった？
+    openDesktopNav();
+  } else {
+    closeMobileMenu();
   }
 });

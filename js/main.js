@@ -1,22 +1,50 @@
 /*************************************************************************
- * main.js - * var.1.0
- * ハンバーガーメニュー制御 + スムーススクロール処理
+ * main.js  –  var.1.2
+ * ハンバーガーメニュー制御 + スムーススクロール + 幅切替リセット
  *************************************************************************/
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
+// リロード時に勝手に元のスクロール位置へ戻らないように
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  /* ─────────────────────────────────────
+     0. 定数 & 要素取得
+  ───────────────────────────────────── */
+  const mqPC = window.matchMedia('(min-width: 1024px)');      // PC = 1024px↑
+
   const hamburger = document.getElementById('js-hamburger');
-  const nav = document.getElementById('global-nav');
-  const body = document.body;
+  const nav       = document.getElementById('global-nav');
+  const body      = document.body;
+  if (!nav) return;                                           // ナビが無ければ終了
 
-  if (!nav) return;
+  /* ─────────────────────────────────────
+     1. ナビ状態を強制リセットするヘルパー
+  ───────────────────────────────────── */
+  const closeMobileMenu = () => {                             // SP 幅での初期状態
+    hamburger?.classList.remove('is-open');
+    hamburger?.setAttribute('aria-expanded', 'false');
+    nav.classList.remove('is-open');
+    body.classList.remove('is-scrollLock');
+    nav.setAttribute('aria-hidden', 'true');
+    nav.setAttribute('inert', '');
+  };
 
-  // ハンバーガーメニュー開閉処理
+  const openDesktopNav = () => {                              // PC 幅の初期状態
+    hamburger?.classList.remove('is-open');
+    hamburger?.setAttribute('aria-expanded', 'false');
+    body.classList.remove('is-scrollLock');
+    nav.classList.remove('is-open');
+    nav.removeAttribute('aria-hidden');
+    nav.removeAttribute('inert');
+  };
+
+  /* ─────────────────────────────────────
+     2. ハンバーガー開閉
+  ───────────────────────────────────── */
   const toggleMenu = () => {
     const isOpen = nav.classList.toggle('is-open');
     hamburger?.setAttribute('aria-expanded', isOpen);
@@ -34,25 +62,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   hamburger?.addEventListener('click', toggleMenu);
 
-  // Safari対策付きスムーススクロール
+  /* ─────────────────────────────────────
+     3. Safari 対策付きスムーススクロール
+  ───────────────────────────────────── */
   const smoothScrollTo = (targetY, duration = 600) => {
-    const startY = window.pageYOffset;
+    const startY   = window.pageYOffset;
     const distance = targetY - startY;
-    const startTime = performance.now();
+    const startT   = performance.now();
     const easeOutQuad = t => t * (2 - t);
 
-    const step = currentTime => {
-      const time = Math.min(1, (currentTime - startTime) / duration);
+    const step = now => {
+      const time  = Math.min(1, (now - startT) / duration);
       const eased = easeOutQuad(time);
       window.scrollTo(0, startY + distance * eased);
       if (time < 1) requestAnimationFrame(step);
     };
-
     requestAnimationFrame(step);
   };
 
   const scrollToTarget = target => {
-    const rect = target.getBoundingClientRect();
+    const rect   = target.getBoundingClientRect();
     const scrollY = window.pageYOffset;
     const scrollPadding = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue('--header-h')
@@ -60,13 +89,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const offsetY = scrollY + rect.top - scrollPadding;
 
     if (isSafari) {
-      smoothScrollTo(offsetY, 600);
+      smoothScrollTo(offsetY);
     } else {
       window.scrollTo({ top: offsetY, behavior: 'smooth' });
     }
   };
 
-  // アンカーリンククリック処理
+  /* ─────────────────────────────────────
+     4. アンカーリンククリック
+  ───────────────────────────────────── */
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     const handleAnchor = e => {
       const href = link.getAttribute('href');
@@ -78,10 +109,10 @@ document.addEventListener('DOMContentLoaded', () => {
       history.pushState(null, '', href);
 
       if (nav.classList.contains('is-open')) toggleMenu();
-
       requestAnimationFrame(() => scrollToTarget(target));
     };
 
+    // 初学者向けにわかりやすい書き方に変更
     link.addEventListener('mousedown', e => {
       if (e.button === 0) handleAnchor(e);
     });
@@ -91,30 +122,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 初期読み込み時のハッシュ対応
-  const hash = location.hash;
-  if (hash) {
-    const target = document.querySelector(hash);
-    if (target) {
-      requestAnimationFrame(() => scrollToTarget(target));
-    }
+  /* ─────────────────────────────────────
+     5. 初期読み込み時にハッシュがある場合
+  ───────────────────────────────────── */
+  if (location.hash) {
+    const target = document.querySelector(location.hash);
+    if (target) requestAnimationFrame(() => scrollToTarget(target));
   }
 
-  // PC/SP幅の切り替えに応じてナビ状態調整
-  window.matchMedia('(min-width: 768px)').addEventListener('change', e => {
-    if (e.matches) {
-      nav.removeAttribute('aria-hidden');
-      nav.removeAttribute('inert');
-    } else {
-      if (!nav.classList.contains('is-open')) {
-        nav.setAttribute('aria-hidden', 'true');
-        nav.setAttribute('inert', '');
-      }
+  /* ─────────────────────────────────────
+     6. PC ⇔ SP 幅切り替え時のリセット
+  ───────────────────────────────────── */
+  mqPC.addEventListener('change', e => {
+    if (e.matches) {               // SP → PC
+      openDesktopNav();
+    } else {                       // PC → SP
+      closeMobileMenu();
     }
   });
 
-  if (window.matchMedia('(min-width: 768px)').matches) {
-    nav.removeAttribute('aria-hidden');
-    nav.removeAttribute('inert');
+  // 画面読み込み時の初期判定
+  if (mqPC.matches) {
+    openDesktopNav();
+  } else {
+    closeMobileMenu();
   }
 });
