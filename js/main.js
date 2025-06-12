@@ -1,9 +1,7 @@
 /*************************************************************************
- * main.js  –  var.1.2
+ * main.js  –  var.1.3
  * ハンバーガーメニュー制御 + スムーススクロール + 幅切替リセット
  *************************************************************************/
-
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 // リロード時に勝手に元のスクロール位置へ戻らないように
 if ('scrollRestoration' in history) {
@@ -62,76 +60,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
   hamburger?.addEventListener('click', toggleMenu);
 
-  /* ─────────────────────────────────────
-     3. Safari 対策付きスムーススクロール
-  ───────────────────────────────────── */
-  const smoothScrollTo = (targetY, duration = 600) => {
-    const startY   = window.pageYOffset;
-    const distance = targetY - startY;
-    const startT   = performance.now();
-    const easeOutQuad = t => t * (2 - t);
+/* ─────────────────────────────────────
+   3. 共通スムーススクロール（prefers‐reduced-motion 対応）
+───────────────────────────────────── */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const step = now => {
-      const time  = Math.min(1, (now - startT) / duration);
-      const eased = easeOutQuad(time);
-      window.scrollTo(0, startY + distance * eased);
-      if (time < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+const smoothScrollTo = (targetY, duration = 350) => { //速度をここで管理
+  if (reduceMotion) {
+    window.scrollTo(0, targetY);
+    return;
+  }
+  const startY  = window.pageYOffset;
+  const dist    = targetY - startY;
+  const startT  = performance.now();
+  const easeOut = t => t * (2 - t);       // お好みで変更可
+
+  const step = now => {
+    const t = Math.min(1, (now - startT) / duration);
+    window.scrollTo(0, startY + dist * easeOut(t));
+    if (t < 1) requestAnimationFrame(step);
   };
+  requestAnimationFrame(step);
+};
 
-  const scrollToTarget = target => {
-    const rect   = target.getBoundingClientRect();
-    const scrollY = window.pageYOffset;
-    const scrollPadding = parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--header-h')
-    ) || 0;
-    const offsetY = scrollY + rect.top - scrollPadding;
-
-    if (isSafari) {
-      smoothScrollTo(offsetY);
-    } else {
-      window.scrollTo({ top: offsetY, behavior: 'smooth' });
-    }
-  };
+const scrollToTarget = target => {
+  const scrollPadding = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--header-h')
+  ) || 0;
+  const offsetY = target.getBoundingClientRect().top + window.pageYOffset - scrollPadding;
+  smoothScrollTo(offsetY);
+};
 
   /* ─────────────────────────────────────
-     4. アンカーリンククリック
+     4. アンカーリンク（ページ内）クリック：スムーススクロール
   ───────────────────────────────────── */
   document.querySelectorAll('a[href^="#"]').forEach(link => {
-    const handleAnchor = e => {
-      const href = link.getAttribute('href');
-      if (!href || href === '#') return;
+    link.addEventListener('click', e => {
+      const href = link.getAttribute('href');     // "#first" 等
+      e.preventDefault();                         // ★常に標準ジャンプ抑止
+
+      if (!href || href === '#') return;          // ダミー "#" はここで終了
+
       const target = document.querySelector(href);
-      if (!target) return;
+      if (!target) return;                        // 要素が無ければ終了
 
-      e.preventDefault();
-      history.pushState(null, '', href);
+      history.pushState(null, '', href);          // URL の # を更新
 
-      if (nav.classList.contains('is-open')) toggleMenu();
+      // ハンバーガーが開いていたら閉じる (nav がある時のみ)
+      const nav = document.getElementById('global-nav');
+      if (nav && nav.classList.contains('is-open')) toggleMenu();
+
+      // 次フレームでスムーススクロール
       requestAnimationFrame(() => scrollToTarget(target));
-    };
-
-    // 初学者向けにわかりやすい書き方に変更
-    link.addEventListener('mousedown', e => {
-      if (e.button === 0) handleAnchor(e);
-    });
-
-    link.addEventListener('keydown', e => {
-      if (e.key === 'Enter') handleAnchor(e);
     });
   });
 
   /* ─────────────────────────────────────
-     5. 初期読み込み時にハッシュがある場合
-  ───────────────────────────────────── */
-  if (location.hash) {
-    const target = document.querySelector(location.hash);
-    if (target) requestAnimationFrame(() => scrollToTarget(target));
-  }
-
-  /* ─────────────────────────────────────
-     6. PC ⇔ SP 幅切り替え時のリセット
+     5. PC ⇔ SP 幅切り替え時のリセット
   ───────────────────────────────────── */
   mqPC.addEventListener('change', e => {
     if (e.matches) {               // SP → PC

@@ -22,11 +22,11 @@
   line-height: 0;
 
   /* フォーカスリングをつける */
-  &:focus-visible {
+  &:focus {
     outline: $focus-width solid $focus-color;
     outline-offset: $focus-offset;
   }
-  &:focus {
+  &:focus-visible {
     outline: $focus-width solid $focus-color;
     outline-offset: $focus-offset;
   }
