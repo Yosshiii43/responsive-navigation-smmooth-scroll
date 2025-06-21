@@ -105,11 +105,11 @@ body {
   /* フォーカスリングをつける */
   /* 展開アニメーション*/
 }
-.c-hamburger:focus-visible {
+.c-hamburger:focus {
   outline: 2px solid #2684ff;
   outline-offset: 2px;
 }
-.c-hamburger:focus {
+.c-hamburger:focus-visible {
   outline: 2px solid #2684ff;
   outline-offset: 2px;
 }

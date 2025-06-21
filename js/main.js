@@ -12,12 +12,21 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─────────────────────────────────────
      0. 定数 & 要素取得
   ───────────────────────────────────── */
+  const header    = document.getElementById('js-header');
   const mqPC = window.matchMedia('(min-width: 1024px)');      // PC = 1024px↑
-
   const hamburger = document.getElementById('js-hamburger');
   const nav       = document.getElementById('global-nav');
   const body      = document.body;
   if (!nav) return;                                           // ナビが無ければ終了
+
+  const getHeaderHeight = () => header ? header.offsetHeight : 0;
+
+  // ユーティリティ
+  const syncHeaderVar = () => { //「CSS 変数 --header-h をヘッダーの実寸で同期する」関数。
+    document.documentElement.style.setProperty('--header-h', `${getHeaderHeight()}px`);
+  };
+  syncHeaderVar();                         // 初期設定
+  window.addEventListener('resize', syncHeaderVar); //ブラウザのリサイズ時に毎回実行
 
   /* ─────────────────────────────────────
      1. ナビ状態を強制リセットするヘルパー
@@ -56,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (nav.contains(focused)) focused.blur();
       nav.setAttribute('inert', '');
     }
+    syncHeaderVar();
   };
 
   hamburger?.addEventListener('click', toggleMenu);
@@ -63,33 +73,31 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ─────────────────────────────────────
    3. 共通スムーススクロール（prefers‐reduced-motion 対応）
 ───────────────────────────────────── */
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const smoothScrollTo = (targetY, duration = 350) => { //速度をここで管理
-  if (reduceMotion) {
-    window.scrollTo(0, targetY);
-    return;
-  }
-  const startY  = window.pageYOffset;
-  const dist    = targetY - startY;
-  const startT  = performance.now();
-  const easeOut = t => t * (2 - t);       // お好みで変更可
+  const smoothScrollTo = (targetY, duration = 350) => { //速度をここで管理
+    if (reduceMotion) {
+      window.scrollTo(0, targetY);
+      return;
+    }
+    const startY  = window.pageYOffset;
+    const dist    = targetY - startY;
+    const startT  = performance.now();
+    const easeOut = t => t * (2 - t);       // お好みで変更可
 
-  const step = now => {
-    const t = Math.min(1, (now - startT) / duration);
-    window.scrollTo(0, startY + dist * easeOut(t));
-    if (t < 1) requestAnimationFrame(step);
+    const step = now => {
+      const t = Math.min(1, (now - startT) / duration);
+      window.scrollTo(0, startY + dist * easeOut(t));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   };
-  requestAnimationFrame(step);
-};
 
-const scrollToTarget = target => {
-  const scrollPadding = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue('--header-h')
-  ) || 0;
-  const offsetY = target.getBoundingClientRect().top + window.pageYOffset - scrollPadding;
-  smoothScrollTo(offsetY);
-};
+  const scrollToTarget = target => {
+    const headerH = getHeaderHeight();   // ←動的に取得
+    const offsetY = target.getBoundingClientRect().top + window.pageYOffset - headerH;
+    smoothScrollTo(offsetY);
+  };
 
   /* ─────────────────────────────────────
      4. アンカーリンク（ページ内）クリック：スムーススクロール
@@ -107,7 +115,6 @@ const scrollToTarget = target => {
       history.pushState(null, '', href);          // URL の # を更新
 
       // ハンバーガーが開いていたら閉じる (nav がある時のみ)
-      const nav = document.getElementById('global-nav');
       if (nav && nav.classList.contains('is-open')) toggleMenu();
 
       // 次フレームでスムーススクロール

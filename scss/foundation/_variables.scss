@@ -14,7 +14,7 @@ $z-navPanel  : 1100;
 $z-hamburger  : 1200;
 
 //header
-$header-h: 64px;
+$header-h: 64px; //JSが走らない場合のフォールバック用
 $header-mode: fixed; // fixed or sticky
 
 //オリジナルのフォーカスリング
